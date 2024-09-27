@@ -52,23 +52,25 @@ class FileApiImpl(private val storageFile: File) : FileApi {
     }
 
     override fun create(path: FileApi.Path, content: ByteArray) {
-        appendInternal(path, content)
+        writeInternal(path, content)
     }
 
     override fun write(path: FileApi.Path, content: ByteArray) {
         if (entryIndex[path] == null) {
             throw FileNotFoundException(path.value)
         }
-        appendInternal(path, content)
+        writeInternal(path, content)
     }
 
-    private fun appendInternal(path: FileApi.Path, content: ByteArray) {
+    private fun writeInternal(path: FileApi.Path, content: ByteArray) {
         val storageEntry = StorageEntry.of(path, content)
         val offset = storageEntry.writeToStorage(storageFile)
         entryIndex[path] = offset
     }
 
-    override fun read(path: FileApi.Path): ByteArray? {
+    override fun read(path: FileApi.Path): ByteArray? = internalRead(path)
+
+    private fun internalRead(path: FileApi.Path): ByteArray? {
         return entryIndex[path]?.let {
             StorageEntry.fromStorage(storageFile, it)
                 .content
@@ -76,7 +78,9 @@ class FileApiImpl(private val storageFile: File) : FileApi {
     }
 
     override fun append(path: FileApi.Path, content: ByteArray) {
-        TODO("Not yet implemented")
+        internalRead(path)?.let {
+            writeInternal(path, it + content)
+        } ?: throw FileNotFoundException(path.value)
     }
 
     override fun delete(path: FileApi.Path) {

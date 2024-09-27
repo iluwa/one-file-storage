@@ -72,4 +72,26 @@ class FileApiImplTest {
         )
         assertEquals("non-existing-file", ex.message)
     }
+
+    @Test
+    fun `Appending to a non-existing file should resolve in exception`() {
+        val ex = assertFailsWith<FileNotFoundException>(
+            message = "No FileNotFoundException was thrown",
+            block = {
+                fileApi.append(FileApi.Path("non-existing-file"), "New version".toByteArray())
+            }
+        )
+        assertEquals("non-existing-file", ex.message)
+    }
+
+    @Test
+    fun `Reading a file after appending should give the latest version`() {
+        fileApi.create(FileApi.Path("some-file"), "My string file".toByteArray())
+        fileApi.create(FileApi.Path("some-file2"), "My string file2".toByteArray())
+
+        fileApi.append(FileApi.Path("some-file"), " - new version".toByteArray())
+
+        val firstFile = fileApi.read(FileApi.Path("some-file"))!!
+        assertEquals("My string file - new version", String(firstFile))
+    }
 }
