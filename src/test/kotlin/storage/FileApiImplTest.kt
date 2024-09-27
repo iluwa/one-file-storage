@@ -1,11 +1,12 @@
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Test
-
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import storage.FileApi
 import storage.FileApiImpl
 import java.io.File
+import java.io.FileNotFoundException
+import kotlin.test.assertFailsWith
 
 class FileApiImplTest {
     private lateinit var file: File
@@ -48,5 +49,27 @@ class FileApiImplTest {
 
         val secondFile = newFileApi.read(FileApi.Path("some-file2"))!!
         assertEquals("My string file2", String(secondFile))
+    }
+
+    @Test
+    fun `Reading a file after updating should give the latest version`() {
+        fileApi.create(FileApi.Path("some-file"), "My string file".toByteArray())
+        fileApi.create(FileApi.Path("some-file2"), "My string file2".toByteArray())
+
+        fileApi.write(FileApi.Path("some-file"), "New version".toByteArray())
+
+        val firstFile = fileApi.read(FileApi.Path("some-file"))!!
+        assertEquals("New version", String(firstFile))
+    }
+
+    @Test
+    fun `Writing to a non-existing file should resolve in exception`() {
+        val ex = assertFailsWith<FileNotFoundException>(
+            message = "No FileNotFoundException was thrown",
+            block = {
+                fileApi.write(FileApi.Path("non-existing-file"), "New version".toByteArray())
+            }
+        )
+        assertEquals("non-existing-file", ex.message)
     }
 }

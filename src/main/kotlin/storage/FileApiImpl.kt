@@ -2,6 +2,7 @@ package storage
 
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 
 fun ByteArray.toInt(): Int {
@@ -51,13 +52,20 @@ class FileApiImpl(private val storageFile: File) : FileApi {
     }
 
     override fun create(path: FileApi.Path, content: ByteArray) {
-        val storageEntry = StorageEntry.of(path, content)
-        val offset = storageEntry.writeToStorage(storageFile)
-        entryIndex[path] = offset
+        appendInternal(path, content)
     }
 
     override fun write(path: FileApi.Path, content: ByteArray) {
-        TODO("Not yet implemented")
+        if (entryIndex[path] == null) {
+            throw FileNotFoundException(path.value)
+        }
+        appendInternal(path, content)
+    }
+
+    private fun appendInternal(path: FileApi.Path, content: ByteArray) {
+        val storageEntry = StorageEntry.of(path, content)
+        val offset = storageEntry.writeToStorage(storageFile)
+        entryIndex[path] = offset
     }
 
     override fun read(path: FileApi.Path): ByteArray? {
