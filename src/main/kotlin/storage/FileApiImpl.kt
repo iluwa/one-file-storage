@@ -1,9 +1,54 @@
 package storage
 
 import java.io.File
+import java.io.FileInputStream
+import java.nio.ByteBuffer
+
+fun ByteArray.toInt(): Int {
+    return ByteBuffer.wrap(this).getInt()
+}
+
+fun FileInputStream.readInt(): Int {
+    val b = ByteArray(Int.SIZE_BYTES)
+    this.read(b)
+    return b.toInt()
+}
+
+fun FileInputStream.readUtf8String(size: Int): String {
+    val b = ByteArray(size)
+    this.read(b)
+    return b.toString(Charsets.UTF_8)
+}
 
 class FileApiImpl(private val storageFile: File) : FileApi {
     private val entryIndex: MutableMap<FileApi.Path, Long> = mutableMapOf()
+
+    init {
+        if (storageFile.exists()) {
+            val storageLength = storageFile.length()
+            storageFile.inputStream().use {
+                var pos = 0L
+                while (pos < storageLength) {
+                    val initialPosition = pos
+
+                    val pathSize = it.readInt()
+                    pos += Int.SIZE_BYTES
+
+                    val path = it.readUtf8String(pathSize)
+                    pos += pathSize
+                    entryIndex[FileApi.Path(path)] = initialPosition
+
+                    val contentSize = it.readInt()
+                    pos += Int.SIZE_BYTES
+
+                    it.skip(contentSize.toLong())
+                    pos += contentSize
+                }
+            }
+        } else {
+            storageFile.createNewFile()
+        }
+    }
 
     override fun create(path: FileApi.Path, content: ByteArray) {
         val storageEntry = StorageEntry.of(path, content)

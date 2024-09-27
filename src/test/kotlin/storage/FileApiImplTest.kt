@@ -8,8 +8,8 @@ import storage.FileApiImpl
 import java.io.File
 
 class FileApiImplTest {
-    lateinit var file: File
-    lateinit var fileApi: FileApiImpl
+    private lateinit var file: File
+    private lateinit var fileApi: FileApiImpl
 
     @BeforeEach
     fun setUp() {
@@ -32,6 +32,21 @@ class FileApiImplTest {
         assertEquals("My string file", String(firstFile))
 
         val secondFile = fileApi.read(FileApi.Path("some-file2"))!!
+        assertEquals("My string file2", String(secondFile))
+    }
+
+    @Test
+    fun `Read from a file with storage entries should succeed`() {
+        fileApi.create(FileApi.Path("some-file"), "My string file".toByteArray())
+        fileApi.create(FileApi.Path("some-file2"), "My string file2".toByteArray())
+
+        // A new instance of file api imitating restart of the application
+        val newFileApi = FileApiImpl(file)
+
+        val firstFile = newFileApi.read(FileApi.Path("some-file"))!!
+        assertEquals("My string file", String(firstFile))
+
+        val secondFile = newFileApi.read(FileApi.Path("some-file2"))!!
         assertEquals("My string file2", String(secondFile))
     }
 }
