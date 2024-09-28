@@ -87,11 +87,18 @@ class FileApiImpl(private val storageFile: File) : FileApi {
         TODO("Not yet implemented")
     }
 
-    override fun rename(oldPath: FileApi.Path, newPath: String) {
-        TODO("Not yet implemented")
+    override fun rename(oldPath: FileApi.Path, newPath: FileApi.Path) {
+        internalMove(oldPath, newPath)
     }
 
-    override fun move(oldPath: FileApi.Path, newPath: String) {
-        TODO("Not yet implemented")
+    override fun move(oldPath: FileApi.Path, newPath: FileApi.Path) {
+        internalMove(oldPath, newPath)
+    }
+
+    private fun internalMove(oldPath: FileApi.Path, newPath: FileApi.Path) {
+        internalRead(oldPath)?.let {
+            writeInternal(newPath, it)
+            entryIndex.remove(oldPath)
+        } ?: throw FileNotFoundException(oldPath.value)
     }
 }

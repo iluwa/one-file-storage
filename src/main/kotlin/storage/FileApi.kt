@@ -8,6 +8,6 @@ interface FileApi {
     fun read(path: Path): ByteArray?
     fun append(path: Path, content: ByteArray)
     fun delete(path: Path)
-    fun rename(oldPath: Path, newPath: String)
-    fun move(oldPath: Path, newPath: String)
+    fun rename(oldPath: Path, newPath: Path)
+    fun move(oldPath: Path, newPath: Path)
 }
