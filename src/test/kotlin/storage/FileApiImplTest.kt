@@ -143,4 +143,31 @@ class FileApiImplTest {
         val before = fileApi.read(FileApi.Path("before"))
         assertNull(before)
     }
+
+    @Test
+    fun `Deleting a non-existing file should resolve in exception`() {
+        val ex = assertFailsWith<FileNotFoundException>(
+            message = "No FileNotFoundException was thrown",
+            block = {
+                fileApi.delete(FileApi.Path("non-existing-file"))
+            }
+        )
+        assertEquals("non-existing-file", ex.message)
+    }
+
+    @Test
+    fun `Deleted object should not be loaded on the startup`() {
+        fileApi.create(FileApi.Path("some-file"), "My string file".toByteArray())
+        fileApi.create(FileApi.Path("some-file2"), "My string file2".toByteArray())
+        fileApi.delete(FileApi.Path("some-file"))
+
+        // A new instance of file api imitating restart of the application
+        val newFileApi = FileApiImpl(file)
+
+        val firstFile = newFileApi.read(FileApi.Path("some-file"))
+        assertNull(firstFile)
+
+        val secondFile = newFileApi.read(FileApi.Path("some-file2"))!!
+        assertEquals("My string file2", String(secondFile))
+    }
 }

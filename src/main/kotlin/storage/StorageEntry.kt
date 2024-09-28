@@ -15,17 +15,13 @@ fun Int.toByteArray(): ByteArray {
     return buffer.array()
 }
 
-data class StorageEntry(val pathSize: Int, val path: FileApi.Path, val contentSize: Int, val content: ByteArray) {
+sealed class StorageEntry(
+    val pathSize: Int,
+    val path: FileApi.Path,
+    val contentSize: Int,
+    val content: ByteArray
+) {
     companion object {
-        fun of(path: FileApi.Path, content: ByteArray): StorageEntry {
-            return StorageEntry(
-                path.value.toByteArray().size,
-                path,
-                content.size,
-                content
-            )
-        }
-
         fun fromStorage(storage: File, offset: Long): StorageEntry {
             return RandomAccessFile(storage, "r").use { file ->
                 file.seek(offset)
@@ -33,10 +29,12 @@ data class StorageEntry(val pathSize: Int, val path: FileApi.Path, val contentSi
                 val path = FileApi.Path(ByteArray(pathSize).also { file.readFully(it) }.decodeToString())
                 val contentSize = file.readInt()
                 val content = ByteArray(contentSize).also { file.readFully(it) }
-                StorageEntry(pathSize, path, contentSize, content)
+                ExistingEntry(pathSize, path, contentSize, content)
             }
         }
     }
+
+    abstract fun size(): Int
 
     fun writeToStorage(storage: File): Long {
         val offset = storage.length()
@@ -48,24 +46,40 @@ data class StorageEntry(val pathSize: Int, val path: FileApi.Path, val contentSi
         }
         return offset
     }
+}
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as StorageEntry
-
-        if (pathSize != other.pathSize) return false
-        if (path != other.path) return false
-        if (contentSize != other.contentSize) return false
-        return content.contentEquals(other.content)
+class ExistingEntry(
+    pathSize: Int,
+    path: FileApi.Path,
+    contentSize: Int,
+    content: ByteArray
+) : StorageEntry(pathSize, path, contentSize, content) {
+    companion object {
+        fun of(path: FileApi.Path, content: ByteArray): ExistingEntry = ExistingEntry(
+            path.value.toByteArray().size,
+            path,
+            content.size,
+            content
+        )
     }
 
-    override fun hashCode(): Int {
-        var result = pathSize
-        result = 31 * result + path.hashCode()
-        result = 31 * result + contentSize
-        result = 31 * result + content.contentHashCode()
-        return result
+    override fun size(): Int {
+        return Int.SIZE_BYTES + pathSize + Int.SIZE_BYTES + contentSize
     }
 }
+
+class DeletedEntry(pathSize: Int, path: FileApi.Path) : StorageEntry(
+    pathSize,
+    path,
+    -1,
+    ByteArray(0)
+) {
+    companion object {
+        fun of(path: FileApi.Path): DeletedEntry = DeletedEntry(path.value.toByteArray().size, path)
+    }
+
+    override fun size(): Int {
+        return Int.SIZE_BYTES + pathSize + Int.SIZE_BYTES
+    }
+}
+

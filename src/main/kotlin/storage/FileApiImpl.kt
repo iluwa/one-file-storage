@@ -41,9 +41,12 @@ class FileApiImpl(private val storageFile: File) : FileApi {
 
                     val contentSize = it.readInt()
                     pos += Int.SIZE_BYTES
-
-                    it.skip(contentSize.toLong())
-                    pos += contentSize
+                    if (contentSize == -1) {
+                        entryIndex.remove(FileApi.Path(path))
+                    } else {
+                        it.skip(contentSize.toLong())
+                        pos += contentSize
+                    }
                 }
             }
         } else {
@@ -63,7 +66,7 @@ class FileApiImpl(private val storageFile: File) : FileApi {
     }
 
     private fun writeInternal(path: FileApi.Path, content: ByteArray) {
-        val storageEntry = StorageEntry.of(path, content)
+        val storageEntry = ExistingEntry.of(path, content)
         val offset = storageEntry.writeToStorage(storageFile)
         entryIndex[path] = offset
     }
@@ -84,7 +87,11 @@ class FileApiImpl(private val storageFile: File) : FileApi {
     }
 
     override fun delete(path: FileApi.Path) {
-        TODO("Not yet implemented")
+        entryIndex[path]?.let {
+            val storageEntry = DeletedEntry.of(path)
+            storageEntry.writeToStorage(storageFile)
+            entryIndex.remove(path)
+        } ?: throw FileNotFoundException(path.value)
     }
 
     override fun rename(oldPath: FileApi.Path, newPath: FileApi.Path) {
