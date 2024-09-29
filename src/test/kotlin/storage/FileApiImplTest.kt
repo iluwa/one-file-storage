@@ -8,6 +8,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class FileApiImplTest {
     private lateinit var file: File
@@ -169,5 +170,21 @@ class FileApiImplTest {
 
         val secondFile = newFileApi.read(FileApi.File("some-file2"))!!
         assertEquals("My string file2", String(secondFile))
+    }
+
+    @Test
+    fun `Create and read an empty folder three levels deep`() {
+        fileApi.create(FileApi.Folder("level1/level2/level3"))
+
+        val level1 = fileApi.read(FileApi.Folder("level1"))
+        assertEquals(1, level1.size)
+        assertEquals(FileApi.Folder("level1/level2"), level1[0])
+
+        val level2 = fileApi.read(level1[0] as FileApi.Folder)
+        assertEquals(1, level2.size)
+        assertEquals(FileApi.Folder("level1/level2/level3"), level2[0])
+
+        val level3 = fileApi.read(level2[0] as FileApi.Folder)
+        assertEquals(0, level3.size)
     }
 }

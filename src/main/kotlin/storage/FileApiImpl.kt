@@ -5,17 +5,17 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 
-fun ByteArray.toInt(): Int {
+private fun ByteArray.toInt(): Int {
     return ByteBuffer.wrap(this).getInt()
 }
 
-fun FileInputStream.readInt(): Int {
+private fun FileInputStream.readInt(): Int {
     val b = ByteArray(Int.SIZE_BYTES)
     this.read(b)
     return b.toInt()
 }
 
-fun FileInputStream.readUtf8String(size: Int): String {
+private fun FileInputStream.readUtf8String(size: Int): String {
     val b = ByteArray(size)
     this.read(b)
     return b.toString(Charsets.UTF_8)
@@ -23,6 +23,7 @@ fun FileInputStream.readUtf8String(size: Int): String {
 
 class FileApiImpl(private val storageFile: File) : FileApi {
     private val entryIndex: MutableMap<FileApi.File, Long> = mutableMapOf()
+    private val folderIndex: MutableMap<FileApi.Folder, MutableList<FileApi.Path>> = mutableMapOf()
 
     init {
         if (storageFile.exists()) {
@@ -116,11 +117,27 @@ class FileApiImpl(private val storageFile: File) : FileApi {
     }
 
     override fun read(folder: FileApi.Folder): List<FileApi.Path> {
-        TODO("Not yet implemented")
+        return folderIndex[folder]
+            ?: throw FileNotFoundException(folder.value)
     }
 
     override fun create(folder: FileApi.Folder) {
-        TODO("Not yet implemented")
+        val folderPaths = folder.value.split("/")
+
+        val storageEntry = ExistingEntry.of(folder)
+        storageEntry.writeToStorage(storageFile)
+
+        if (folderPaths.size == 1) {
+            folderIndex[folder] = mutableListOf()
+        } else {
+            var currentPath = folderPaths[0]
+            for (i in 1 until folderPaths.size) {
+                val nestedPath = currentPath + "/" + folderPaths[i]
+                folderIndex[FileApi.Folder(currentPath)] = mutableListOf(FileApi.Folder(nestedPath))
+                currentPath = nestedPath
+            }
+            folderIndex[folder] = mutableListOf()
+        }
     }
 
     private fun internalMove(oldPath: FileApi.Path, newPath: FileApi.Path) {

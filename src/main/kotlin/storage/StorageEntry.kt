@@ -5,19 +5,19 @@ import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 
-fun File.outputStream(appendMode: Boolean = false): FileOutputStream {
+private fun File.outputStream(appendMode: Boolean = false): FileOutputStream {
     return FileOutputStream(this, appendMode)
 }
 
-fun Int.toByteArray(): ByteArray {
+private fun Int.toByteArray(): ByteArray {
     val buffer = ByteBuffer.allocate(Int.SIZE_BYTES)
     buffer.putInt(this)
     return buffer.array()
 }
 
-val EMPTY_BYTE_ARRAY = ByteArray(0)
+private val EMPTY_BYTE_ARRAY = ByteArray(0)
 
-sealed class StorageEntry(
+internal sealed class StorageEntry(
     val pathSize: Int,
     val path: FileApi.Path,
     val contentSize: Int,
@@ -58,7 +58,7 @@ sealed class StorageEntry(
     }
 }
 
-class ExistingEntry(
+internal class ExistingEntry(
     pathSize: Int,
     path: FileApi.Path,
     contentSize: Int,
@@ -81,7 +81,7 @@ class ExistingEntry(
     }
 }
 
-class DeletedEntry(pathSize: Int, path: FileApi.Path) : StorageEntry(
+internal class DeletedEntry(pathSize: Int, path: FileApi.Path) : StorageEntry(
     pathSize,
     path,
     -1,
