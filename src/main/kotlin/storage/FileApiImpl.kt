@@ -22,7 +22,7 @@ fun FileInputStream.readUtf8String(size: Int): String {
 }
 
 class FileApiImpl(private val storageFile: File) : FileApi {
-    private val entryIndex: MutableMap<FileApi.Path, Long> = mutableMapOf()
+    private val entryIndex: MutableMap<FileApi.File, Long> = mutableMapOf()
 
     init {
         if (storageFile.exists()) {
@@ -32,17 +32,24 @@ class FileApiImpl(private val storageFile: File) : FileApi {
                 while (pos < storageLength) {
                     val initialPosition = pos
 
+                    val type = it.readNBytes(1)[0]
+                    pos += 1
+
                     val pathSize = it.readInt()
                     pos += Int.SIZE_BYTES
 
                     val path = it.readUtf8String(pathSize)
                     pos += pathSize
-                    entryIndex[FileApi.Path(path)] = initialPosition
+                    when(type) {
+                        0.toByte() -> entryIndex[FileApi.File(path)] = initialPosition
+                        1.toByte() -> TODO()
+                        else -> error("Unknown type of the storage entry")
+                    }
 
                     val contentSize = it.readInt()
                     pos += Int.SIZE_BYTES
                     if (contentSize == -1) {
-                        entryIndex.remove(FileApi.Path(path))
+                        entryIndex.remove(FileApi.File(path))
                     } else {
                         it.skip(contentSize.toLong())
                         pos += contentSize
@@ -54,24 +61,24 @@ class FileApiImpl(private val storageFile: File) : FileApi {
         }
     }
 
-    override fun create(path: FileApi.Path, content: ByteArray) {
-        writeInternal(path, content)
+    override fun create(file: FileApi.File, content: ByteArray) {
+        writeInternal(file, content)
     }
 
-    override fun write(path: FileApi.Path, content: ByteArray) {
-        if (entryIndex[path] == null) {
-            throw FileNotFoundException(path.value)
+    override fun write(file: FileApi.File, content: ByteArray) {
+        if (entryIndex[file] == null) {
+            throw FileNotFoundException(file.value)
         }
-        writeInternal(path, content)
+        writeInternal(file, content)
     }
 
-    private fun writeInternal(path: FileApi.Path, content: ByteArray) {
-        val storageEntry = ExistingEntry.of(path, content)
+    private fun writeInternal(file: FileApi.File, content: ByteArray) {
+        val storageEntry = ExistingEntry.of(file, content)
         val offset = storageEntry.writeToStorage(storageFile)
-        entryIndex[path] = offset
+        entryIndex[file] = offset
     }
 
-    override fun read(path: FileApi.Path): ByteArray? = internalRead(path)
+    override fun read(file: FileApi.File): ByteArray? = internalRead(file)
 
     private fun internalRead(path: FileApi.Path): ByteArray? {
         return entryIndex[path]?.let {
@@ -80,18 +87,24 @@ class FileApiImpl(private val storageFile: File) : FileApi {
         }
     }
 
-    override fun append(path: FileApi.Path, content: ByteArray) {
-        internalRead(path)?.let {
-            writeInternal(path, it + content)
-        } ?: throw FileNotFoundException(path.value)
+    override fun append(file: FileApi.File, content: ByteArray) {
+        internalRead(file)?.let {
+            writeInternal(file, it + content)
+        } ?: throw FileNotFoundException(file.value)
     }
 
     override fun delete(path: FileApi.Path) {
-        entryIndex[path]?.let {
-            val storageEntry = DeletedEntry.of(path)
-            storageEntry.writeToStorage(storageFile)
-            entryIndex.remove(path)
-        } ?: throw FileNotFoundException(path.value)
+        when (path) {
+            is FileApi.File -> {
+                entryIndex[path]?.let {
+                    val storageEntry = DeletedEntry.of(path)
+                    storageEntry.writeToStorage(storageFile)
+                    entryIndex.remove(path)
+                } ?: throw FileNotFoundException(path.value)
+            }
+            is FileApi.Folder -> TODO()
+        }
+
     }
 
     override fun rename(oldPath: FileApi.Path, newPath: FileApi.Path) {
@@ -102,10 +115,27 @@ class FileApiImpl(private val storageFile: File) : FileApi {
         internalMove(oldPath, newPath)
     }
 
+    override fun read(folder: FileApi.Folder): List<FileApi.Path> {
+        TODO("Not yet implemented")
+    }
+
+    override fun create(folder: FileApi.Folder) {
+        TODO("Not yet implemented")
+    }
+
     private fun internalMove(oldPath: FileApi.Path, newPath: FileApi.Path) {
-        internalRead(oldPath)?.let {
-            writeInternal(newPath, it)
-            entryIndex.remove(oldPath)
-        } ?: throw FileNotFoundException(oldPath.value)
+        val folders = oldPath is FileApi.Folder && newPath is FileApi.Folder
+        val files = oldPath is FileApi.File && newPath is FileApi.File
+        require(folders || files)
+
+        when (oldPath) {
+            is FileApi.File -> {
+                internalRead(oldPath)?.let {
+                    writeInternal(newPath as FileApi.File, it)
+                    entryIndex.remove(oldPath)
+                } ?: throw FileNotFoundException(oldPath.value)
+            }
+            is FileApi.Folder -> TODO()
+        }
     }
 }

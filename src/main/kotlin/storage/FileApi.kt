@@ -1,13 +1,20 @@
 package storage
 
 interface FileApi {
-    data class Path(val value: String)
+    sealed class Path {
+        abstract val value: String
+    }
+    data class File(override val value: String) : Path()
+    data class Folder(override val value: String) : Path()
 
-    fun create(path: Path, content: ByteArray)
-    fun write(path: Path, content: ByteArray)
-    fun read(path: Path): ByteArray?
-    fun append(path: Path, content: ByteArray)
+    fun create(file: File, content: ByteArray)
+    fun write(file: File, content: ByteArray)
+    fun read(file: File): ByteArray?
+    fun append(file: File, content: ByteArray)
     fun delete(path: Path)
     fun rename(oldPath: Path, newPath: Path)
     fun move(oldPath: Path, newPath: Path)
+
+    fun read(folder: Folder): List<Path>
+    fun create(folder: Folder)
 }
