@@ -7,8 +7,7 @@ import storage.FileApiImpl
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class FileApiImplTest {
     private lateinit var file: File
@@ -31,10 +30,10 @@ class FileApiImplTest {
         fileApi.create(FileApi.File("some-file"), "My string file".toByteArray())
         fileApi.create(FileApi.File("some-file2"), "My string file2".toByteArray())
 
-        val firstFile = fileApi.read(FileApi.File("some-file"))!!
+        val firstFile = fileApi.read(FileApi.File("some-file"))
         assertEquals("My string file", String(firstFile))
 
-        val secondFile = fileApi.read(FileApi.File("some-file2"))!!
+        val secondFile = fileApi.read(FileApi.File("some-file2"))
         assertEquals("My string file2", String(secondFile))
     }
 
@@ -46,10 +45,10 @@ class FileApiImplTest {
         // A new instance of file api imitating restart of the application
         val newFileApi = FileApiImpl(file)
 
-        val firstFile = newFileApi.read(FileApi.File("some-file"))!!
+        val firstFile = newFileApi.read(FileApi.File("some-file"))
         assertEquals("My string file", String(firstFile))
 
-        val secondFile = newFileApi.read(FileApi.File("some-file2"))!!
+        val secondFile = newFileApi.read(FileApi.File("some-file2"))
         assertEquals("My string file2", String(secondFile))
     }
 
@@ -60,7 +59,7 @@ class FileApiImplTest {
 
         fileApi.write(FileApi.File("some-file"), "New version".toByteArray())
 
-        val firstFile = fileApi.read(FileApi.File("some-file"))!!
+        val firstFile = fileApi.read(FileApi.File("some-file"))
         assertEquals("New version", String(firstFile))
     }
 
@@ -93,7 +92,7 @@ class FileApiImplTest {
 
         fileApi.append(FileApi.File("some-file"), " - new version".toByteArray())
 
-        val firstFile = fileApi.read(FileApi.File("some-file"))!!
+        val firstFile = fileApi.read(FileApi.File("some-file"))
         assertEquals("My string file - new version", String(firstFile))
     }
 
@@ -114,11 +113,10 @@ class FileApiImplTest {
 
         fileApi.rename(FileApi.File("before"), FileApi.File("after"))
 
-        val after = fileApi.read(FileApi.File("after"))!!
+        val after = fileApi.read(FileApi.File("after"))
         assertEquals("My string file", String(after))
 
-        val before = fileApi.read(FileApi.File("before"))
-        assertNull(before)
+        assertFalse(fileApi.exists(FileApi.File("before")))
     }
 
     @Test
@@ -138,11 +136,10 @@ class FileApiImplTest {
 
         fileApi.move(FileApi.File("before"), FileApi.File("after"))
 
-        val after = fileApi.read(FileApi.File("after"))!!
+        val after = fileApi.read(FileApi.File("after"))
         assertEquals("My string file", String(after))
 
-        val before = fileApi.read(FileApi.File("before"))
-        assertNull(before)
+        assertFalse(fileApi.exists(FileApi.File("before")))
     }
 
     @Test
@@ -157,7 +154,7 @@ class FileApiImplTest {
     }
 
     @Test
-    fun `Deleted object should not be loaded on the startup`() {
+    fun `Deleted files should not be loaded on the startup`() {
         fileApi.create(FileApi.File("some-file"), "My string file".toByteArray())
         fileApi.create(FileApi.File("some-file2"), "My string file2".toByteArray())
         fileApi.delete(FileApi.File("some-file"))
@@ -165,10 +162,9 @@ class FileApiImplTest {
         // A new instance of file api imitating restart of the application
         val newFileApi = FileApiImpl(file)
 
-        val firstFile = newFileApi.read(FileApi.File("some-file"))
-        assertNull(firstFile)
+        assertFalse(fileApi.exists(FileApi.File("some-file")))
 
-        val secondFile = newFileApi.read(FileApi.File("some-file2"))!!
+        val secondFile = newFileApi.read(FileApi.File("some-file2"))
         assertEquals("My string file2", String(secondFile))
     }
 
@@ -186,5 +182,50 @@ class FileApiImplTest {
 
         val level3 = fileApi.read(level2[0] as FileApi.Folder)
         assertEquals(0, level3.size)
+    }
+
+    @Test
+    fun `Delete an empty folder`() {
+        fileApi.create(FileApi.Folder("level1/level2"))
+        fileApi.delete(FileApi.Folder("level1/level2"))
+
+        val level1 = fileApi.read(FileApi.Folder("level1"))
+        assertEquals(0, level1.size)
+    }
+
+    @Test
+    fun `Delete folder with a nested file - the file should be deleted`() {
+        fileApi.create(FileApi.Folder("level1/level2"))
+        fileApi.create(FileApi.File("level1/level2/myfile"), "Content".toByteArray())
+        fileApi.delete(FileApi.Folder("level1/level2"))
+
+        val level1 = fileApi.read(FileApi.Folder("level1"))
+        assertEquals(0, level1.size)
+
+        assertFalse(fileApi.exists(FileApi.File("level1/level2/myfile")))
+    }
+
+    @Test
+    fun `Deleted folder with children objects should not be loaded on the startup`() {
+        fileApi.create(FileApi.File("level1/level2/myfile"), "Content".toByteArray())
+        fileApi.create(FileApi.Folder("level1/level2-2"))
+        fileApi.delete(FileApi.Folder("level1/level2"))
+
+        // A new instance of file api imitating restart of the application
+        val newFileApi = FileApiImpl(file)
+
+        val level1 = newFileApi.read(FileApi.Folder("level1"))
+        assertEquals(1, level1.size)
+        assertEquals(FileApi.Folder("level1/level2-2"), level1[0])
+
+        assertFalse(fileApi.exists(FileApi.File("level1/level2/myfile")))
+    }
+
+    @Test
+    fun `Multiple level path should be split correctly`() {
+        val structure = FileApi.Folder("level1/level2").split()
+        assertEquals(2, structure.size)
+        assertEquals("level1", structure[0].value)
+        assertEquals("level1/level2", structure[1].value)
     }
 }
