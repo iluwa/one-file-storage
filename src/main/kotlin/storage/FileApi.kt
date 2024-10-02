@@ -24,6 +24,22 @@ interface FileApi {
             }
             return res
         }
+
+        fun last(): Path {
+            val last = value.split("/").last()
+            return when (this) {
+                is Folder -> Folder(last)
+                is File -> File(last)
+            }
+        }
+
+        fun append(path: Path): Path {
+            val fullPath = this.value + "/" + path.value
+            return when (path) {
+                is Folder -> Folder(fullPath)
+                is File -> File(fullPath)
+            }
+        }
     }
     data class File(override val value: String) : Path()
     data class Folder(override val value: String) : Path()

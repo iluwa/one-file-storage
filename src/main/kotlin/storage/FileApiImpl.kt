@@ -142,7 +142,13 @@ class FileApiImpl(private val storageFile: File) : FileApi {
                     deleteInternal(oldPath)
                 }
             }
-            is FileApi.Folder -> TODO()
+            is FileApi.Folder -> {
+                createFolderInternal(newPath as FileApi.Folder)
+                storageIndex.getChildrenOrThrow(oldPath).forEach {
+                    internalMove(it, newPath.append(it.last()))
+                }
+                deleteInternal(oldPath)
+            }
         }
     }
 }

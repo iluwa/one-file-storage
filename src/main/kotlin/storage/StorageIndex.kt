@@ -64,6 +64,6 @@ internal class StorageIndex {
     }
 
     fun getChildrenOrThrow(folder: FileApi.Folder): Set<FileApi.Path> {
-        return folderIndex[folder] ?: throw FileNotFoundException(folder.value)
+        return folderIndex[folder]?.toSet() ?: throw FileNotFoundException(folder.value)
     }
 }

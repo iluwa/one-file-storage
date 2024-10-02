@@ -1,5 +1,6 @@
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import storage.FileApi
@@ -227,5 +228,30 @@ class FileApiImplTest {
         assertEquals(2, structure.size)
         assertEquals("level1", structure[0].value)
         assertEquals("level1/level2", structure[1].value)
+    }
+
+    @Test
+    fun `After folder renaming all nested objects should be under the renamed one`() {
+        fileApi.create(FileApi.File("level1/myfile"), "Content".toByteArray())
+        fileApi.create(FileApi.Folder("level1/level2"))
+        fileApi.rename(FileApi.Folder("level1"), FileApi.Folder("level1-1"))
+
+        assertFalse(fileApi.exists(FileApi.Folder("level1")))
+
+        val level11 = fileApi.read(FileApi.Folder("level1-1"))
+        assertEquals(2, level11.size)
+
+        assertTrue(fileApi.exists(FileApi.File("level1-1/myfile")))
+        assertTrue(fileApi.exists(FileApi.Folder("level1-1/level2")))
+    }
+
+    @Test
+    fun `Test moving from root folder to a nested one`() {
+        fileApi.create(FileApi.File("myfile"), "Content".toByteArray())
+        fileApi.create(FileApi.Folder("level1"))
+        fileApi.move(FileApi.File("myfile"), FileApi.File("level1/myfile"))
+
+        val movedFileContent = fileApi.read(FileApi.File("level1/myfile"))
+        assertEquals("Content", String(movedFileContent))
     }
 }
