@@ -254,4 +254,17 @@ class FileApiImplTest {
         val movedFileContent = fileApi.read(FileApi.File("level1/myfile"))
         assertEquals("Content", String(movedFileContent))
     }
+
+    @Test
+    fun `Test that compact file should keep all of the files`() {
+        fileApi.create(FileApi.File("myfile"), "Content".toByteArray())
+        fileApi.create(FileApi.Folder("level1"))
+        fileApi.create(FileApi.File("level2/nested-file"), "Nested content".toByteArray())
+        fileApi.move(FileApi.File("myfile"), FileApi.File("level1/myfile"))
+
+        fileApi.compact()
+
+        assertTrue(fileApi.exists(FileApi.File("level1/myfile")))
+        assertTrue(fileApi.exists(FileApi.File("level2/nested-file")))
+    }
 }

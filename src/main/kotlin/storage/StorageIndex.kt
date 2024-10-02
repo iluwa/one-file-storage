@@ -3,8 +3,30 @@ package storage
 import java.io.FileNotFoundException
 
 internal class StorageIndex {
-    private val entryIndex: MutableMap<FileApi.Path, Long> = mutableMapOf()
-    private val folderIndex: MutableMap<FileApi.Folder, MutableSet<FileApi.Path>> = mutableMapOf()
+    private val entryIndex: MutableMap<FileApi.Path, Long>
+    private val folderIndex: MutableMap<FileApi.Path, MutableSet<FileApi.Path>>
+
+    constructor() {
+        entryIndex = mutableMapOf()
+        folderIndex = mutableMapOf()
+    }
+
+    private constructor(entryIndex: MutableMap<FileApi.Path, Long>,
+                        folderIndex: MutableMap<FileApi.Path, MutableSet<FileApi.Path>>) {
+        this.entryIndex = entryIndex
+        this.folderIndex = folderIndex
+    }
+
+    fun copyWithStructure(newEntryIndex: MutableMap<FileApi.Path, Long>): StorageIndex {
+        return StorageIndex(
+            newEntryIndex,
+            this.folderIndex
+        )
+    }
+
+    fun getAllEntries(): Map<FileApi.Path, Long> {
+        return entryIndex
+    }
 
     fun add(path: FileApi.Path, offset: Long) {
         entryIndex[path] = offset
@@ -39,7 +61,7 @@ internal class StorageIndex {
 
         entryIndex.remove(path)
         if (path.parent() != null) {
-            folderIndex[path.parent()]?.remove(path)
+            folderIndex[path.parent() as FileApi.Path]?.remove(path)
         }
         folderIndex.remove(path)
     }

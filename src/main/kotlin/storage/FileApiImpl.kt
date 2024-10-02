@@ -2,7 +2,9 @@ package storage
 
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 import java.nio.ByteBuffer
+import java.nio.file.Files
 
 private fun ByteArray.toInt(): Int {
     return ByteBuffer.wrap(this).getInt()
@@ -20,8 +22,8 @@ private fun FileInputStream.readUtf8String(size: Int): String {
     return b.toString(Charsets.UTF_8)
 }
 
-class FileApiImpl(private val storageFile: File) : FileApi {
-    private val storageIndex = StorageIndex()
+class FileApiImpl(private var storageFile: File) : FileApi {
+    private var storageIndex = StorageIndex()
 
     init {
         if (storageFile.exists()) {
@@ -59,6 +61,38 @@ class FileApiImpl(private val storageFile: File) : FileApi {
             }
         } else {
             storageFile.createNewFile()
+        }
+    }
+
+    override fun compact() {
+        val newStorage = File("tmp")
+        newStorage.createNewFile()
+
+        val entries: Map<FileApi.Path, Long> = storageIndex.getAllEntries()
+        val newEntries: MutableMap<FileApi.Path, Long> = mutableMapOf()
+
+        entries.forEach { (path, _) ->
+            val storageEntry = when (path) {
+                is FileApi.File -> {
+                    val content = internalRead(path)
+                    ExistingEntry.of(path, content)
+
+                }
+                is FileApi.Folder -> ExistingEntry.of(path)
+            }
+            val offset = storageEntry.writeToStorage(newStorage)
+            newEntries[path] = offset
+        }
+
+        val prevStorageFile = storageFile
+        val bkp = File(prevStorageFile.name + "_bkp")
+        if (prevStorageFile.renameTo(bkp)) {
+            val renamed = Files.move(newStorage.toPath(), prevStorageFile.toPath())
+            storageFile = renamed.toFile()
+            storageIndex = storageIndex.copyWithStructure(newEntries)
+            bkp.delete()
+        } else {
+            throw IOException("Error during the compact procedure: storage file cannot be renamed")
         }
     }
 

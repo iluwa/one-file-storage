@@ -44,6 +44,7 @@ interface FileApi {
     data class File(override val value: String) : Path()
     data class Folder(override val value: String) : Path()
 
+    fun compact()
     fun create(file: File, content: ByteArray)
     fun write(file: File, content: ByteArray)
     fun read(file: File): ByteArray
