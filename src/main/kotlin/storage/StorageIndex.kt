@@ -33,19 +33,19 @@ internal class StorageIndex {
 
         val structure = path.split()
 
-        if (structure.size == 1 && path is FileApi.Folder) {
+        if (structure.size == 1) {
             folderIndex[path] = mutableSetOf()
         }
 
         for (i in 0..structure.size - 2) {
-            if (structure[i + 1] is FileApi.Folder && !folderIndex.containsKey(structure[i + 1])) {
-                folderIndex[structure[i + 1] as FileApi.Folder] = mutableSetOf()
+            if (!folderIndex.containsKey(structure[i + 1])) {
+                folderIndex[structure[i + 1]] = mutableSetOf()
             }
 
             if (folderIndex.containsKey(structure[i])) {
                 folderIndex[structure[i]]?.add(structure[i + 1])
             } else {
-                folderIndex[structure[i] as FileApi.Folder] = mutableSetOf(structure[i + 1])
+                folderIndex[structure[i]] = mutableSetOf(structure[i + 1])
             }
         }
     }
