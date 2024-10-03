@@ -1,59 +1,97 @@
 package storage
 
-interface FileApi {
-    sealed class Path {
-        abstract val value: String
+interface StorageContainer : FileOperations, HasContainerLifecycle
 
-        fun parent(): Folder? {
-            val paths = value.split("/")
-            return if (paths.size == 1) null
-            else {
-                val prevPath = (0..paths.size - 2).joinToString("/") { paths[it] }
-                Folder(prevPath)
-            }
-        }
+interface FileOperations {
+    /**
+     * Add [filePath] with the [content] to the storage.
+     * If parent folders do not exist, they are created
+     */
+    fun create(filePath: FilePath, content: ByteArray)
 
-        fun split(): List<Path> {
-            val paths = value.split("/")
-            var cumulativePath = ""
-            val res = mutableListOf<Path>()
-            for (i in paths.indices) {
-                cumulativePath += if (i == 0) paths[i] else "/" + paths[i]
-                if (i == paths.size - 1) res.add(this)
-                else res.add(Folder(cumulativePath))
-            }
-            return res
-        }
+    /**
+     * Write [content] to the [filePath]
+     *
+     * @throws java.io.FileNotFoundException when there is no file in the [filePath]
+     */
+    fun write(filePath: FilePath, content: ByteArray)
 
-        fun last(): Path {
-            val last = value.split("/").last()
-            return when (this) {
-                is Folder -> Folder(last)
-                is File -> File(last)
-            }
-        }
+    /**
+     * Read [filePath] and return its content
+     *
+     * @throws java.io.FileNotFoundException when there is no file in the [filePath]
+     */
+    fun read(filePath: FilePath): ByteArray
 
-        fun append(path: Path): Path {
-            val fullPath = this.value + "/" + path.value
-            return when (path) {
-                is Folder -> Folder(fullPath)
-                is File -> File(fullPath)
-            }
-        }
-    }
-    data class File(override val value: String) : Path()
-    data class Folder(override val value: String) : Path()
-
-    fun compact()
-    fun create(file: File, content: ByteArray)
-    fun write(file: File, content: ByteArray)
-    fun read(file: File): ByteArray
+    /**
+     * Check if a file or a folder exists in the storage container
+     */
     fun exists(path: Path): Boolean
-    fun append(file: File, content: ByteArray)
+
+    /**
+     * Append [content] to the [filePath]
+     *
+     * @throws java.io.FileNotFoundException when there is no file in the [filePath]
+     */
+    fun append(filePath: FilePath, content: ByteArray)
+
+    /**
+     * Delete file or folder in the [path]. If it is a folder then
+     * delete every nested object
+     *
+     * @throws java.io.FileNotFoundException when there is no file in the [path]
+     */
     fun delete(path: Path)
+
+    /**
+     * Rename [oldPath] to the [newPath].
+     *
+     * @throws IllegalArgumentException if the type of the input arguments differs
+     * They should be either both [FilePath] or both [FolderPath]
+     */
     fun rename(oldPath: Path, newPath: Path)
+
+    /**
+     * Move [oldPath] to the [newPath].
+     *
+     * @throws IllegalArgumentException if the type of the input arguments differs
+     * They should be either both [FilePath] or both [FolderPath]
+     */
     fun move(oldPath: Path, newPath: Path)
 
-    fun read(folder: Folder): List<Path>
-    fun create(folder: Folder)
+    /**
+     * Read [folderPath] and return its children
+     *
+     * @throws java.io.FileNotFoundException when there is no folder in the [folderPath]
+     */
+    fun read(folderPath: FolderPath): List<Path>
+
+    /**
+     * Create an empty folder in [folderPath]
+     * If parent folders do not exist, they are created
+     */
+    fun create(folderPath: FolderPath)
+}
+
+interface HasContainerLifecycle {
+    /**
+     * Start the container and make ready to use
+     */
+    fun start()
+
+    /**
+     * Stop the container, no operations are allowed except start and destroy
+     */
+    fun stop()
+
+    /**
+     * DANGER! Destroy the storage file inside the container
+     */
+    fun destroy()
+
+    /**
+     * Maintenance procedure for a storage container - the call frequency
+     * depends on the implementation of the storage container
+     */
+    fun compact()
 }
