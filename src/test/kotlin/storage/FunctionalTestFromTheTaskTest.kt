@@ -1,46 +1,49 @@
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import storage.FileApi
-import storage.FileApiImpl
+import storage.FilePath
+import storage.FolderPath
+import storage.StorageContainer
+import storage.singlefile.SingleFileStorageContainer
 import java.io.File
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FunctionalTestFromTheTaskTest {
-    private lateinit var file: File
-    private lateinit var fileApi: FileApiImpl
+    private lateinit var storageContainer: StorageContainer
 
     @BeforeEach
     fun setUp() {
-        file = File("storage")
-        file.createNewFile()
-        fileApi = FileApiImpl(file)
+        storageContainer = SingleFileStorageContainer()
+        storageContainer.start()
     }
 
     @AfterEach
     fun tearDown() {
-        file.delete()
+        storageContainer.destroy()
     }
 
     /*
     Include at least one complete functional test: store all project tree,
     erase 70% of all files, compact container, add all files again into new subfolder.
     Close container file, reopen and verify all content.
+
+    Note on the path implementation: the path "." treated as a separate folder. So when the file
+    "./file" is added to the one-storage-container, it is added inside the folder "."
      */
     @Test
     fun `Complete functional test`() {
         val allFilesAndFolders = File("./").walk()
-            .filter { it.name != file.name } // exclude writing storage file since it is dynamic
+            .filter { it.name != "storage" } // exclude writing storage file since it is dynamic
             .toList()
 
         // create all the files inside the one-file-storage
         allFilesAndFolders.forEach {
             if (it.isDirectory) {
-                fileApi.create(FileApi.Folder(it.toString()))
+                storageContainer.create(FolderPath(it.toString()))
             } else {
-                fileApi.create(FileApi.File(it.toString()), it.readBytes())
+                storageContainer.create(FilePath(it.toString()), it.readBytes())
             }
         }
 
@@ -53,38 +56,39 @@ class FunctionalTestFromTheTaskTest {
         val deletedFiles = mutableListOf<File>()
 
         for (i in 0..amountFilesToDelete) {
-            fileApi.delete(FileApi.File(allFiles[i].toString()))
+            storageContainer.delete(FilePath(allFiles[i].toString()))
             deletedFiles.add(allFiles[i])
         }
 
         val filesLeft = allFiles - deletedFiles.toSet()
 
         // verify files which were deleted
-        deletedFiles.forEach { assertFalse(fileApi.exists(FileApi.File(it.toString()))) }
+        deletedFiles.forEach { assertFalse(storageContainer.exists(FilePath(it.toString()))) }
 
         // verify files which were left after deletion
         filesLeft.forEach { assertFileOrFolder(it) }
 
         // compact storage
-        fileApi.compact()
+        storageContainer.compact()
 
         // add all files to a new folder
         allFilesAndFolders.forEach {
             if (it.isDirectory) {
-                fileApi.create(FileApi.Folder("./custom-folder/${it}"))
+                storageContainer.create(FolderPath("./custom-folder/${it}"))
             } else {
-                fileApi.create(FileApi.File("./custom-folder/${it}"), it.readBytes())
+                storageContainer.create(FilePath("./custom-folder/${it}"), it.readBytes())
             }
         }
 
         // Reopen file
-        fileApi = FileApiImpl(file)
+        storageContainer.stop()
+        storageContainer.start()
 
         // verify that all files are in the custom-folder
         allFilesAndFolders.forEach { assertFileOrFolder(it, "./custom-folder") }
 
         // verify files which were deleted
-        deletedFiles.forEach { assertFalse(fileApi.exists(FileApi.File(it.toString()))) }
+        deletedFiles.forEach { assertFalse(storageContainer.exists(FilePath(it.toString()))) }
 
         // verify files which were left after deletion
         filesLeft.forEach { assertFileOrFolder(it) }
@@ -93,9 +97,9 @@ class FunctionalTestFromTheTaskTest {
     private fun assertFileOrFolder(path: File, parentFolder: String = "") {
         val fullPathInTheStorage = if (parentFolder.isBlank()) path.toString() else "$parentFolder/$path"
         if (path.isDirectory) {
-            assertTrue(fileApi.exists(FileApi.Folder(fullPathInTheStorage)))
+            assertTrue(storageContainer.exists(FolderPath(fullPathInTheStorage)))
         } else {
-            val content = fileApi.read(FileApi.File(fullPathInTheStorage))
+            val content = storageContainer.read(FilePath(fullPathInTheStorage))
             assertContentEquals(path.readBytes(), content)
         }
     }
