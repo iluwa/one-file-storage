@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="true" name="Run all tests" type="JUnit" factoryName="JUnit">
+  <configuration default="false" name="Run all tests" type="JUnit" factoryName="JUnit">
     <module name="one-file-storage" />
     <option name="PACKAGE_NAME" value="" />
     <option name="MAIN_CLASS_NAME" value="" />
