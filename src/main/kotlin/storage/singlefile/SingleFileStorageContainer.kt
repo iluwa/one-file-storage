@@ -191,6 +191,19 @@ class SingleFileStorageContainer : StorageContainer {
         createFolderInternal(folderPath)
     }
 
+    override fun walk(folderPath: FolderPath, consumer: (Path) -> Unit) {
+        requireStatus(ContainerStatus.READY_TO_USE)
+        storageIndex.getChildrenOrThrow(folderPath).forEach {
+            when (it) {
+                is FilePath -> consumer(it)
+                is FolderPath -> {
+                    consumer(it)
+                    walk(it, consumer)
+                }
+            }
+        }
+    }
+
     private fun createFolderInternal(folder: FolderPath) {
         val storageEntry = ExistingEntry.of(folder)
         val position = storageEntry.writeToStorage(storageFile)

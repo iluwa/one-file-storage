@@ -71,6 +71,11 @@ interface FileOperations {
      * If parent folders do not exist, they are created
      */
     fun create(folderPath: FolderPath)
+
+    /**
+     * Apply [consumer] to all nested paths inside the [folderPath]
+     */
+    fun walk(folderPath: FolderPath, consumer: (Path) -> Unit)
 }
 
 interface HasContainerLifecycle {

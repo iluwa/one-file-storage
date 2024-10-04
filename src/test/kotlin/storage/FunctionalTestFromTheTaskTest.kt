@@ -92,6 +92,11 @@ class FunctionalTestFromTheTaskTest {
 
         // verify files which were left after deletion
         filesLeft.forEach { assertFileOrFolder(it) }
+
+        // presenting all the paths inside container - as a proof that the test is working
+        storageContainer.walk(FolderPath(".")) {
+            println(it.value)
+        }
     }
 
     private fun assertFileOrFolder(path: File, parentFolder: String = "") {
